@@ -1,0 +1,1 @@
+(function(){ window.UEDITOR_JS_PIN = 100;}());

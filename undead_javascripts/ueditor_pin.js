@@ -1,0 +1,1 @@
+(function(){ if(! window.UEDITOR_JS_PIN) window.UEDITOR_JS_PIN = 1; else window.UEDITOR_JS_PIN++; }());

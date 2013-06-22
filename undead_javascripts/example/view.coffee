@@ -1,0 +1,3 @@
+loadit("View.-tmpl",()->
+  Template. = """
+""")

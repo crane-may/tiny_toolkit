@@ -1,0 +1,3 @@
+loadit("Dialog.-tmpl",()->
+  DialogTempl[""] = """
+""")

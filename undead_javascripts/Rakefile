@@ -1,0 +1,101 @@
+require 'rake/clean'
+CLEAN.include('*_2.js','*_3.js')
+
+tar = ["home","login","register","guide","userpage","messages_list","messages_classify","at","like","remarks","pagination","manage","nothing",
+			"blacklist","invitation","domain_name","user_info","face","tweet_show","message_edit","letter_home","letters","reset_password","guest",
+      "topic_home","book_arrange","messages_selections","recent","falls","app_info","messages_guest_selections","tweet_guest_show","topic_guest_home",
+      "radio","topic_new","topic_recent","vote"]
+
+file :default => tar.map{|x| "_#{x}_2.js"}
+
+task :check_head do
+  FileList['**/*.js','**/*.coffee'].each do |x|
+		print "----#{x}----\n"
+		f = open(x)
+		lines = f.readlines
+		p lines[0]
+		p lines[1] if x.end_with? ".coffee"
+		p lines[-1]
+		f.close()
+	end
+end
+
+def key(fname)
+	f = open(fname)
+	k = f.readline().match(/loadit.*?["']([^'"]+)["']/)[1]
+	f.close()
+	k = k.split("-")[0]
+	{:k => k,:force => k.start_with?("!") }
+end
+
+def word_filter(fname,words)
+	f = open(fname)
+	s = f.read()
+	f.close()
+	
+	words = words.reject do |word|
+		not s.include? word
+	end
+end
+
+def gen_fmap(farr)
+	fmap = {}
+	farr.each do |fname|
+		k = key(fname)
+		if fmap.has_key? k[:k]
+			fmap[k[:k]][:fname] << fname
+		else
+			fmap[k[:k]] = {:fname=> [fname], :need=> k[:force]}
+		end
+	end
+	fmap
+end
+
+def need_list(init_arr, fmap)
+	q = init_arr
+	while not q.empty?
+		fl = q.pop
+		needs = word_filter(fl, fmap.keys.reject {|k| fmap[k][:need]} )
+		# p needs
+		needs.each do |y| 
+			fmap[y][:need] = true
+			q += fmap[y][:fname]
+		end
+	end
+	
+	flist = fmap.map do |k,v|
+		v[:need] ? v[:fname] : []
+	end.flatten.sort.uniq
+	
+	flist
+end
+
+FileList['_*.js'].each do |x|
+	file x.gsub(".js","_2.js") => x do
+		fmap2 = gen_fmap(FileList["./2_level/**/*.js","./2_level/**/*.coffee","./widget/**/*.js"])
+		flist2 = need_list [x], fmap2
+		
+		fmap3 = gen_fmap(FileList["./3_level/**/*.js","./3_level/**/*.coffee","./widget/**/*.js"])
+		flist3 = need_list [x]+flist2, fmap3
+		flist3 -= flist2
+		
+		p flist2
+		p flist3
+		
+		File.open(x.gsub(".js","_2.js"),"w") do |tarfile|
+			flist2.each do |fl|
+				tarfile.write "//= require #{fl}\n"
+			end
+			tarfile.write "\n//= require ./load_2.js"
+			tarfile.write "\n//= require #{x}\n"
+			tarfile.write "\n});//end of loadit \n\nApp.trigger('app_ready');"
+		end
+		
+		File.open(x.gsub(".js","_3.js"),"w") do |tarfile|
+			flist3.each do |fl|
+				tarfile.write "//= require #{fl}\n"
+			end
+			tarfile.write "\nApp.trigger('app_complete');"
+		end
+	end
+end
