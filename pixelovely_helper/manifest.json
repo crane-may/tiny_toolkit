@@ -1,0 +1,20 @@
+{ 
+  "name": "pixelovely_helper",
+  "version": "0.1.0",
+  "manifest_version":2,
+  "description": "pixelovely helper", 
+  "browser_action": {
+  }, 
+  "permissions": [],
+  "content_scripts": [
+    {
+      "matches": ["http://artists.pixelovely.com/practice-tools/*"],
+      "css": [],
+      "js": ["jquery.js",
+        "jquery-migrate.min.js",
+        "gesturetool3.2.js",
+        "jquery.simpletip-1.3.1.pack.js",
+        "content.js"]
+    }
+  ]
+} 
