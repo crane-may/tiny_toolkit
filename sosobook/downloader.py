@@ -1,6 +1,21 @@
 # -*- coding: utf-8 -*-
+# sudo easy_install threadpool
+import urllib, urllib2, json, os, threadpool
 
-import urllib2, json
+def ununicode(obj):
+  if isinstance(obj, list):
+    return [ununicode(i) for i in obj]
+    
+  elif isinstance(obj, dict):
+    newobj = {}
+    for k, v in obj.items():
+      newobj[ununicode(k)] = ununicode(v)
+    return newobj
+    
+  elif isinstance(obj, unicode):
+    return obj.encode("utf8")
+  else:
+    return obj
 
 def httpget(url):
   request = urllib2.Request(url)
@@ -19,20 +34,66 @@ def httpget(url):
   
   return html
 
-html = httpget('http://m.sosobook.cn/cs/detail.php?mid=3416')
-detail = json.loads(html[html.find("{"):])
-# print detail['links']
+def downloadtask(up):
+  url, path = up
+  urllib.urlretrieve(url, path)
+  return url
 
+def downloadtask_callback(request, result):
+    print result
+
+html = httpget('http://m.sosobook.cn/cs/detail.php?mid=3416')
+detail = ununicode(json.loads(html[html.find("{"):]))
+
+bootroot = detail["name"]
+print bootroot
+
+if not os.path.exists(bootroot):
+  os.mkdir(bootroot)
+
+pool = threadpool.ThreadPool(5) 
 for chap in detail['links']:
+  chaproot = ""
+  if chap["title"] != "":
+    chaproot += chap["title"]
+  else:
+    chaproot += chap["idx"]
+    
+  if chap["type"] == "0":
+    chaproot += "_Eps"
+  elif chap["type"] == "1":
+    chaproot += "_Vol"
+  
+  if chaproot == "":
+    chaproot = "unknow_"+chap["cid"]
+  
+  if not os.path.exists(bootroot+os.sep+chaproot):
+    os.mkdir(bootroot+os.sep+chaproot)
+  
+  print "-"*20, chaproot
+  
   cid = chap["cid"]
   page = 1
   pics = []
+  
   while True:
     html = httpget("http://m.sosobook.cn/cs/manga.php?mid=3416&cid=%s&page=%d"%(cid, page))
-    c = json.loads(html[html.find("{"):])
+    c = ununicode(json.loads(html[html.find("{"):]))
     page += 1
     pics += c["pics"]
     if c["next"] == 0:
       break
   
-  print pics
+  tsk = []
+  for p in pics:
+    imgpath = bootroot+os.sep+chaproot+os.sep+p
+    imgurl = "http://c-r2.sosobook.cn/pics/3416/%s/%s"%(cid,p)
+    if not os.path.exists(imgpath):
+      tsk.append([imgurl, imgpath])
+  
+  requests = threadpool.makeRequests(downloadtask, tsk, downloadtask_callback)
+  [pool.putRequest(req) for req in requests]
+  pool.wait()
+  
+  
+# http://c-r2.sosobook.cn/pics/3416/131073/c0001.jpg
